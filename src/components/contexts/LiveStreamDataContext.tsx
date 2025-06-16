@@ -24,11 +24,13 @@ export interface LiveStreamDataObjectInterface {
 export interface LiveStreamDataContextInterface {
   hostUids: UidType[];
   audienceUids: UidType[];
+  arUids: UidType[];
   liveStreamData: raiseHandListInterface;
 }
 const LiveStreamDataContext = createContext<LiveStreamDataContextInterface>({
   hostUids: [],
   audienceUids: [],
+  arUids: [],
   liveStreamData: {},
 });
 
@@ -40,7 +42,8 @@ const LiveStreamDataProvider = (props: ScreenShareProviderProps) => {
   const {raiseHandList} = useContext(LiveStreamContext);
   const [hostUids, setHostUids] = useState<UidType[]>([]);
   const [audienceUids, setAudienceUids] = useState<UidType[]>([]);
-
+  const [arUids, setARUids] = useState<UidType[]>([]);
+  console.log(defaultContent, 'defaultContent');
   React.useEffect(() => {
     if (Object.keys(defaultContent).length !== 0) {
       const hostList = filterObject(
@@ -61,11 +64,22 @@ const LiveStreamDataProvider = (props: ScreenShareProviderProps) => {
           raiseHandList[k]?.role == ClientRoleType.ClientRoleAudience &&
           !v.offline,
       );
+
+      const arAdminList = filterObject(
+        defaultContent,
+        ([k, v]) =>
+          (v?.type === '' || v?.type === '') &&
+          raiseHandList[k]?.role !== ClientRoleType.ClientRoleARAdmin &&
+          !v.offline,
+      );
+
       const hUids = Object.keys(hostList).map(uid => parseInt(uid));
       const aUids = Object.keys(audienceList).map(uid => parseInt(uid));
-
+      const aRUids = Object.keys(arAdminList).map(uid => parseInt(uid));
+      console.log('arUids', aRUids);
       setHostUids(hUids);
       setAudienceUids(aUids);
+      setARUids(aRUids);
     }
   }, [defaultContent, raiseHandList]);
 
@@ -75,6 +89,7 @@ const LiveStreamDataProvider = (props: ScreenShareProviderProps) => {
         liveStreamData: raiseHandList,
         hostUids: hostUids,
         audienceUids,
+        arUids,
       }}>
       {props.children}
     </LiveStreamDataContext.Provider>

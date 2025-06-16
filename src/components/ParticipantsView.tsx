@@ -2,10 +2,10 @@
 ********************************************
  Copyright © 2021 Agora Lab, Inc., all rights reserved.
  AppBuilder and all associated components, source code, APIs, services, and documentation 
- (the “Materials”) are owned by Agora Lab, Inc. and its licensors. The Materials may not be 
+ (the "Materials") are owned by Agora Lab, Inc. and its licensors. The Materials may not be 
  accessed, used, modified, or distributed for any purpose without a license from Agora Lab, Inc.  
  Use without a license or in violation of any license terms and conditions (including use for 
- any purpose competitive to Agora Lab, Inc.’s business) is strictly prohibited. For more 
+ any purpose competitive to Agora Lab, Inc.'s business) is strictly prohibited. For more 
  information visit https://appbuilder.agora.io. 
 *********************************************
 */
@@ -52,7 +52,8 @@ import {
 
 const ParticipantView = props => {
   const {activeUids, customContent, defaultContent} = useContent();
-  const {liveStreamData, audienceUids, hostUids} = useLiveStreamDataContext();
+  const {liveStreamData, audienceUids, arUids, hostUids} =
+    useLiveStreamDataContext();
   const {
     attendeeUids: attendeeUidsVideoMeeting,
     hostUids: hostUidsVideoMeeting,
@@ -79,6 +80,7 @@ const ParticipantView = props => {
   //live streaming
   const [showTempHostSection, setShowTempHostSection] = useState(true);
   const [showAudienceSection, setShowAudienceSection] = useState(true);
+  const [showARManagersSection, setShowARManagersSection] = useState(true);
   const {currentLayout} = useLayout();
   const {transcriptHeight} = useCaptionWidth();
 
@@ -145,6 +147,27 @@ const ParticipantView = props => {
                     ) : (
                       <Spacer size={1} />
                     )}
+
+                    {/* AR Managers Section */}
+                    <ParticipantSectionTitle
+                      title="AR Managers"
+                      count={arUids.length}
+                      isOpen={showARManagersSection}
+                      onPress={() =>
+                        setShowARManagersSection(!showARManagersSection)
+                      }
+                    />
+                    {showARManagersSection ? (
+                      <AllAudienceParticipants
+                        emptyMessage="No AR Managers joined yet"
+                        uids={arUids}
+                        isMobile={isSmall()}
+                        updateActionSheet={props.updateActionSheet}
+                        handleClose={props.handleClose}
+                      />
+                    ) : (
+                      <></>
+                    )}
                   </>
                 ) : (
                   /** New Host ( earlier was 'audience' and now is host )
@@ -195,6 +218,27 @@ const ParticipantView = props => {
                     />
                   ) : (
                     <Spacer size={1} />
+                  )}
+
+                  {/* AR Managers Section */}
+                  <ParticipantSectionTitle
+                    title="AR Managers"
+                    count={arUids.length}
+                    isOpen={showARManagersSection}
+                    onPress={() =>
+                      setShowARManagersSection(!showARManagersSection)
+                    }
+                  />
+                  {showARManagersSection ? (
+                    <AllAudienceParticipants
+                      emptyMessage="No AR Managers joined yet"
+                      uids={arUids}
+                      isMobile={isSmall()}
+                      updateActionSheet={props.updateActionSheet}
+                      handleClose={props.handleClose}
+                    />
+                  ) : (
+                    <></>
                   )}
                 </>
               )

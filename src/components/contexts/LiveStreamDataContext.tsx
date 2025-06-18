@@ -26,12 +26,14 @@ export interface LiveStreamDataContextInterface {
   audienceUids: UidType[];
   arUids: UidType[];
   liveStreamData: raiseHandListInterface;
+  pinnedUids: UidType[];
 }
 const LiveStreamDataContext = createContext<LiveStreamDataContextInterface>({
   hostUids: [],
   audienceUids: [],
   arUids: [],
   liveStreamData: {},
+  pinnedUids: [],
 });
 
 interface ScreenShareProviderProps {
@@ -43,7 +45,18 @@ const LiveStreamDataProvider = (props: ScreenShareProviderProps) => {
   const [hostUids, setHostUids] = useState<UidType[]>([]);
   const [audienceUids, setAudienceUids] = useState<UidType[]>([]);
   const [arUids, setARUids] = useState<UidType[]>([]);
-  console.log(defaultContent, 'defaultContent');
+  const [pinnedUids, setPinnedUids] = useState<UidType[]>([]);
+  console.log(activeUids, 'defaultContent');
+  useEffect(() => {
+    if (activeUids) {
+      setPinnedUids(activeUids);
+      console.log('Updated pinnedUids:', {
+        activeUids,
+        pinnedUids: activeUids,
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }, [activeUids]);
   React.useEffect(() => {
     if (Object.keys(defaultContent).length !== 0) {
       const hostList = filterObject(
@@ -90,6 +103,7 @@ const LiveStreamDataProvider = (props: ScreenShareProviderProps) => {
         hostUids: hostUids,
         audienceUids,
         arUids,
+        pinnedUids,
       }}>
       {props.children}
     </LiveStreamDataContext.Provider>

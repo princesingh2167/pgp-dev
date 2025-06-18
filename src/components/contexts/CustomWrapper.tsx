@@ -13,21 +13,23 @@ import React, {
   useEffect,
   useRef,
   useState,
+  useContext,
+  useCallback,
 } from 'react';
 
-import AgoraAppBuilder, {
-  useUserBan,
+import {
   customEvents,
   useLocalAudio,
   useLocalVideo,
   useRoomInfo,
-  UidType,
   useUserActionMenu,
-  useWhiteboard,
-  useContent,
-} from '@appbuilder/react';
-
+  useLayout,
+} from 'customization-api';
 import {PinProvider} from './PinContext';
+import {UidType} from '../../../index.rsdk';
+import {DispatchContext} from '../../../agora-rn-uikit';
+import {getPinnedLayoutName} from '../../pages/video-call/DefaultLayouts';
+import {useLiveStreamDataContext} from './LiveStreamDataContext';
 
 export interface CustomWrapperContextInterface {
   triggerEndCallEvent: boolean;
@@ -50,43 +52,35 @@ const CustomWrapperContext = React.createContext<CustomWrapperContextInterface>(
 interface CustomWrapperProviderProps {
   children: React.ReactNode;
 }
+
 const CustomWrapperProvider = (props: CustomWrapperProviderProps) => {
   const [triggerEndCallEvent, setTriggerEndCallEvent] = useState(true);
-
   const triggerEndCallEventRef = useRef(triggerEndCallEvent);
-  const {activeUids} = useContent();
+  const dispatchContext = useContext(DispatchContext);
+  const {setLayout} = useLayout();
+  const {pinnedUids} = useLiveStreamDataContext();
 
-  useEffect(() => {
-    triggerEndCallEventRef.current = triggerEndCallEvent;
-  }, [triggerEndCallEvent]);
+  // Initialize pinnedUidsRef with the current pinnedUids
+  const pinnedUidsRef = React.useRef<UidType[]>(pinnedUids || []);
+  const pendingPinRef = React.useRef<{pinUID: UidType; action: string} | null>(
+    null,
+  );
 
+  // Declare hooks first
   const {enableAudioButton, disableAudioButton} = useLocalAudio();
   const {enableVideoButton, disableVideoButton} = useLocalVideo();
   const {data} = useRoomInfo();
   const isHost = data?.isHost ?? false;
-
   const [pinnedForAllUid, setPinnedForAllUid] = useState<UidType | null>(null);
   const {pinForEveryone, unPinForEveryone} = useUserActionMenu();
-  const {getWhiteboardUid} = useWhiteboard();
 
-  const activeUidsRef = React.useRef(activeUids);
-  useEffect(() => {
-    activeUidsRef.current = activeUids;
-  }, [activeUids]);
-
-  // override default host controls
-  useEffect(() => {
-    /**
-     * custom event listener for disable attendee mic
-     * Here we can call disableAudioButton/enableAudioButton function to update participant mic button state
-     */
-    customEvents.on('DISABLE_ATTENDEE_MIC', ({payload}) => {
+  // Define event handlers
+  const disableMicHandler = useCallback(
+    ({payload}: {payload: string}) => {
       try {
-        //host side we don't disable the button so ignoring it
         if (isHost) {
           return;
         }
-        //attendee only disable the mic button
         const data = JSON.parse(payload);
         if (data && data === true) {
           disableAudioButton();
@@ -96,14 +90,16 @@ const CustomWrapperProvider = (props: CustomWrapperProviderProps) => {
       } catch (error) {
         console.log('debugging error on DISABLE_ATTENDEE_MIC listener ');
       }
-    });
-    customEvents.on('DISABLE_ATTENDEE_VIDEO', ({payload}) => {
+    },
+    [isHost, disableAudioButton, enableAudioButton],
+  );
+
+  const disableVideoHandler = useCallback(
+    ({payload}: {payload: string}) => {
       try {
-        //host side we don't disable the button so ignoring it
         if (isHost) {
           return;
         }
-        //attendee only disable the mic button
         const data = JSON.parse(payload);
         if (data && data === true) {
           disableVideoButton();
@@ -113,42 +109,139 @@ const CustomWrapperProvider = (props: CustomWrapperProviderProps) => {
       } catch (error) {
         console.log('debugging error on DISABLE_ATTENDEE_VIDEO listener ');
       }
-    });
+    },
+    [isHost, disableVideoButton, enableVideoButton],
+  );
 
-    /**
-     * Custom event listener for PIN_FOR_EVERYONE
-     * @param {Object} payload - The payload data sent with the event.
-     */
-
-    customEvents.on('PIN_FOR_EVERYONE', ({payload}) => {
+  const pinForEveryoneHandler = useCallback(
+    ({payload}: {payload: string}) => {
+      console.log('PIN_FOR_EVERYONE event received with payload:', payload);
       try {
         const data = JSON.parse(payload);
-        const pinUID =
-          data.uidType === 'whiteboard' && data.pinForAllUid
-            ? getWhiteboardUid() // each user has diff whiteboard uid
-            : data.pinForAllUid;
+        console.log('Parsed PIN_FOR_EVERYONE data:', data);
 
-        if (!activeUidsRef.current.includes(pinUID) && pinUID) {
-          // prevent pinning if the user is not in the active UIDs list for ex banned user
+        if (!data || typeof data !== 'object') {
+          throw new Error('Invalid payload format');
+        }
+
+        if (data.uidType !== 'rtc') {
+          console.log('Skipping non-rtc uidType:', data.uidType);
           return;
         }
+
+        const pinUID = data.pinForAllUid;
+        const action = data.action;
+
+        console.log('Processing pin action:', {pinUID, action});
+
+        if (!pinUID && action !== 'unpin') {
+          throw new Error('Missing required fields: pinUID or action');
+        }
+
+        // Update local state first
         setPinnedForAllUid(pinUID);
-        if (pinUID) {
+
+        // Then update the global pin state and layout
+        if (action === 'pin' && pinUID) {
+          console.log('Pinning user for everyone:', pinUID);
+          // Pin for everyone
           pinForEveryone(pinUID);
-        } else {
+          // Update layout for all users
+          if (dispatchContext?.dispatch) {
+            dispatchContext.dispatch({
+              type: 'UserPin',
+              value: [pinUID],
+            });
+            setLayout(getPinnedLayoutName());
+          }
+        } else if (action === 'unpin') {
+          console.log('Unpinning user for everyone');
+          // Unpin for everyone
           unPinForEveryone();
+          // Update layout for all users
+          if (dispatchContext?.dispatch) {
+            dispatchContext.dispatch({
+              type: 'UserPin',
+              value: [0],
+            });
+            setLayout(getPinnedLayoutName());
+          }
         }
       } catch (error) {
-        console.log('debugging error on PIN_FOR_EVERYONE listener ');
+        console.error('Error in PIN_FOR_EVERYONE handler:', {
+          error: error instanceof Error ? error.message : 'Unknown error',
+          errorStack: error instanceof Error ? error.stack : undefined,
+          payload,
+        });
       }
-    });
+    },
+    [pinForEveryone, unPinForEveryone, dispatchContext, setLayout],
+  );
+
+  // Register event listeners
+  useEffect(() => {
+    console.log('Registering PIN_FOR_EVERYONE event listener');
+    customEvents.on('DISABLE_ATTENDEE_MIC', disableMicHandler);
+    customEvents.on('DISABLE_ATTENDEE_VIDEO', disableVideoHandler);
+    customEvents.on('PIN_FOR_EVERYONE', pinForEveryoneHandler);
 
     return () => {
-      customEvents.off('DISABLE_ATTENDEE_MIC', () => {});
-      customEvents.off('DISABLE_ATTENDEE_VIDEO', () => {});
-      customEvents.off('PIN_FOR_EVERYONE', () => {});
+      console.log('Unregistering PIN_FOR_EVERYONE event listener');
+      customEvents.off('DISABLE_ATTENDEE_MIC', disableMicHandler);
+      customEvents.off('DISABLE_ATTENDEE_VIDEO', disableVideoHandler);
+      customEvents.off('PIN_FOR_EVERYONE', pinForEveryoneHandler);
     };
-  }, []);
+  }, [disableMicHandler, disableVideoHandler, pinForEveryoneHandler]);
+
+  useEffect(() => {
+    triggerEndCallEventRef.current = triggerEndCallEvent;
+  }, [triggerEndCallEvent]);
+
+  useEffect(() => {
+    if (pinnedUids) {
+      pinnedUidsRef.current = pinnedUids;
+      // If we have a pending pin action and now have pinned users, try to process it
+      if (pendingPinRef.current && pinnedUids.length > 0) {
+        const {pinUID, action} = pendingPinRef.current;
+        if (pinnedUids.includes(pinUID)) {
+          // Update local state first
+          setPinnedForAllUid(pinUID);
+
+          // Then update the global pin state and layout
+          if (action === 'pin' && pinUID) {
+            // Pin for everyone
+            pinForEveryone(pinUID);
+            // Update layout for all users
+            if (dispatchContext?.dispatch) {
+              dispatchContext.dispatch({
+                type: 'UserPin',
+                value: [pinUID],
+              });
+              setLayout(getPinnedLayoutName());
+            }
+          } else if (action === 'unpin') {
+            // Unpin for everyone
+            unPinForEveryone();
+            // Update layout for all users
+            if (dispatchContext?.dispatch) {
+              dispatchContext.dispatch({
+                type: 'UserPin',
+                value: [0],
+              });
+              setLayout(getPinnedLayoutName());
+            }
+          }
+          pendingPinRef.current = null;
+        }
+      }
+    }
+  }, [
+    pinnedUids,
+    pinForEveryone,
+    unPinForEveryone,
+    dispatchContext,
+    setLayout,
+  ]);
 
   return (
     <CustomWrapperContext.Provider

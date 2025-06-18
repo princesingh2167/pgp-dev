@@ -77,6 +77,7 @@ import {
   DEFAULT_ACTION_KEYS,
   UserActionMenuItemsConfig,
 } from '../../atoms/UserActionMenuPreset';
+import {CustomWrapperContext} from '../contexts/CustomWrapper';
 
 interface UserActionMenuOptionsOptionsProps {
   user: ContentInterface;
@@ -125,6 +126,9 @@ export default function UserActionMenuOptionsOptions(
   const {enablePinForMe} = useVideoCall();
   const {setDisableChatUids, disableChatUids} = useDisableChat();
   const {getWhiteboardUid = () => 0} = useWhiteboard();
+  const {pinnedForAllUid, setPinnedForAllUid} =
+    useContext(CustomWrapperContext);
+  const {pinForEveryone, unPinForEveryone} = useUserActionMenu();
 
   //fetch via prefrence wrapper
   const {userActionMenuItems} = useUserActionMenu();
@@ -200,125 +204,142 @@ export default function UserActionMenuOptionsOptions(
       )
     ) {
       if (enablePinForMe) {
-        if (pinnedUid !== user.uid) {
-          const viewInLargeKey = ActionMenuKeys.VIEW_IN_LARGE;
-          const viewInLargeConfig = userActionMenuItems?.[viewInLargeKey] ?? {};
-          const isPinned = pinnedUid === user.uid;
-          const isWhiteboard = user.uid === getWhiteboardUid();
-          const isOnlyOneActive = activeUids?.length === 1;
+        // Add Pin for everyone option for all users
+        const pinForEveryoneKey = 'pin-for-everyone';
+        const pinForEveryoneConfig =
+          userActionMenuItems?.[pinForEveryoneKey] ?? {};
+        const isPinnedForEveryone = user.uid === pinnedForAllUid;
+        const isOnlyOneActive = activeUids?.length === 1;
 
-          if (!viewInLargeConfig.hide && !isPinned) {
-            items.push({
-              key: viewInLargeKey,
-              disabled: viewInLargeConfig.disabled ?? isOnlyOneActive,
-              order: viewInLargeConfig.order ?? 0,
-              icon: isPinned ? 'unpin-outlined' : 'pin-outlined',
-              onHoverIcon: isPinned ? 'unpin-filled' : 'pin-filled',
-              iconColor: $config.SECONDARY_ACTION_COLOR,
-              textColor: $config.SECONDARY_ACTION_COLOR,
-              title: isWhiteboard
-                ? viewWhiteboardLabel
-                : isPinned
-                ? removeFromLargeLabel
-                : viewInLargeLabel,
-              onPress: () => {
-                setActionMenuVisible(false);
-                if (viewInLargeConfig.onPress) {
-                  viewInLargeConfig.onPress();
-                } else {
-                  viewInLargeConfig.onAction?.();
+        if (!pinForEveryoneConfig.hide) {
+          items.push({
+            key: pinForEveryoneKey,
+            disabled: pinForEveryoneConfig.disabled ?? isOnlyOneActive,
+            order: pinForEveryoneConfig.order ?? 0,
+            icon: isPinnedForEveryone ? 'unpin-outlined' : 'pin-outlined',
+            onHoverIcon: isPinnedForEveryone ? 'unpin-filled' : 'pin-filled',
+            iconColor: 'yellow',
+            textColor: 'yellow',
+            title: isPinnedForEveryone
+              ? 'Unpin for everyone'
+              : 'Pin for everyone',
+            onPress: () => {
+              setActionMenuVisible(false);
+              if (pinForEveryoneConfig.onPress) {
+                pinForEveryoneConfig.onPress();
+              } else {
+                const newPinnedUid = isPinnedForEveryone ? null : user.uid;
+                // When sending
+                console.log('Sending PIN_FOR_EVERYONE event', newPinnedUid);
+
+                // Send event to all participants
+                customEvents.send(
+                  'PIN_FOR_EVERYONE',
+                  JSON.stringify({
+                    pinForAllUid: newPinnedUid,
+                    uidType: user.type,
+                    action: isPinnedForEveryone ? 'unpin' : 'pin',
+                  }),
+                  PersistanceLevel.Session,
+                );
+
+                // Update local state
+                setPinnedForAllUid(newPinnedUid);
+
+                // Update layout for all users
+                if (newPinnedUid) {
+                  // Pin for everyone
+                  pinForEveryone(newPinnedUid);
+                  // Update local layout for all users
                   dispatch({
                     type: 'UserPin',
-                    value: [isPinned ? 0 : user.uid],
+                    value: [newPinnedUid],
+                  });
+                  setLayout(getPinnedLayoutName());
+                } else {
+                  // Unpin for everyone
+                  unPinForEveryone();
+                  // Update local layout for all users
+                  dispatch({
+                    type: 'UserPin',
+                    value: [0],
                   });
                   setLayout(getPinnedLayoutName());
                 }
-              },
-            });
-          }
-
-          // items.push({
-          //   //disabled: activeUids?.filter(i => !customContent[i])?.length === 1,
-          //   disabled: activeUids?.length === 1,
-          //   icon: pinnedUid ? 'unpin-outlined' : 'pin-outlined',
-          //   onHoverIcon: pinnedUid ? 'unpin-outlined' : 'pin-filled',
-          //   iconColor: $config.SECONDARY_ACTION_COLOR,
-          //   textColor: $config.SECONDARY_ACTION_COLOR,
-          //   title: pinnedUid
-          //     ? user.uid === pinnedUid
-          //       ? removeFromLargeLabel
-          //       : user.uid === getWhiteboardUid()
-          //       ? viewWhiteboardLabel
-          //       : viewInLargeLabel
-          //     : user.uid === getWhiteboardUid()
-          //     ? viewWhiteboardLabel
-          //     : viewInLargeLabel,
-          //   onPress: () => {
-          //     setActionMenuVisible(false);
-          //     dispatch({
-          //       type: 'UserPin',
-          //       value: [pinnedUid && user.uid === pinnedUid ? 0 : user.uid],
-          //     });
-          //     setLayout(getPinnedLayoutName());
-          //   },
-          // });
+              }
+            },
+          });
         }
-        if (currentLayout === DefaultLayouts[1].name) {
-          const pinToTopKey = ActionMenuKeys.PIN_TO_TOP;
-          const pinToTopConfig = userActionMenuItems?.[pinToTopKey] ?? {};
-          const isPinnedToTop = user.uid === secondaryPinnedUid;
-          const isOnlyOneActive = activeUids?.length === 1;
+      }
 
-          if (!pinToTopConfig.hide) {
-            items.push({
-              key: pinToTopKey,
-              disabled: pinToTopConfig.disabled ?? isOnlyOneActive,
-              order: pinToTopConfig.order ?? 1,
-              icon: isPinnedToTop ? 'unpin-outlined' : 'pin-outlined',
-              onHoverIcon: isPinnedToTop ? 'unpin-filled' : 'pin-filled',
-              iconColor: $config.SECONDARY_ACTION_COLOR,
-              textColor: $config.SECONDARY_ACTION_COLOR,
-              title: isPinnedToTop ? removeFromTopLabel : pinToTopLabel,
-              onPress: () => {
-                setActionMenuVisible(false);
-                if (pinToTopConfig.onPress) {
-                  pinToTopConfig.onPress();
-                } else {
-                  pinToTopConfig.onAction?.();
-                  dispatch({
-                    type: 'UserSecondaryPin',
-                    value: [isPinnedToTop ? 0 : user.uid],
-                  });
-                }
-              },
-            });
-          }
+      // Regular pin for me option - only show if not pinned for everyone
+      if (pinnedUid !== user.uid && user.uid !== pinnedForAllUid) {
+        const viewInLargeKey = ActionMenuKeys.VIEW_IN_LARGE;
+        const viewInLargeConfig = userActionMenuItems?.[viewInLargeKey] ?? {};
+        const isPinned = pinnedUid === user.uid;
+        const isWhiteboard = user.uid === getWhiteboardUid();
+        const isOnlyOneActive = activeUids?.length === 1;
 
-          // items.push({
-          //   // disabled:
-          //   //   activeUids?.filter(i => !customContent[i])?.length === 1,
-          //   disabled: activeUids?.length === 1,
-          //   icon: secondaryPinnedUid ? 'unpin-outlined' : 'pin-outlined',
-          //   onHoverIcon: secondaryPinnedUid ? 'unpin-outlined' : 'pin-filled',
-          //   iconColor: $config.SECONDARY_ACTION_COLOR,
-          //   textColor: $config.SECONDARY_ACTION_COLOR,
-          //   title: secondaryPinnedUid
-          //     ? user.uid === secondaryPinnedUid
-          //       ? removeFromTopLabel
-          //       : pinToTopLabel
-          //     : pinToTopLabel,
-          //   onPress: () => {
-          //     setActionMenuVisible(false);
-          //     dispatch({
-          //       type: 'UserSecondaryPin',
-          //       value: [
-          //         secondaryPinnedUid && user.uid === secondaryPinnedUid
-          //           ? 0
-          //           : user.uid,
-          //       ],
-          //     });
-          //   },
-          // });
+        if (!viewInLargeConfig.hide && !isPinned) {
+          items.push({
+            key: viewInLargeKey,
+            disabled: viewInLargeConfig.disabled ?? isOnlyOneActive,
+            order: viewInLargeConfig.order ?? 1,
+            icon: isPinned ? 'unpin-outlined' : 'pin-outlined',
+            onHoverIcon: isPinned ? 'unpin-filled' : 'pin-filled',
+            iconColor: $config.SECONDARY_ACTION_COLOR,
+            textColor: $config.SECONDARY_ACTION_COLOR,
+            title: isWhiteboard
+              ? viewWhiteboardLabel
+              : isPinned
+              ? removeFromLargeLabel
+              : viewInLargeLabel,
+            onPress: () => {
+              setActionMenuVisible(false);
+              if (viewInLargeConfig.onPress) {
+                viewInLargeConfig.onPress();
+              } else {
+                viewInLargeConfig.onAction?.();
+                dispatch({
+                  type: 'UserPin',
+                  value: [isPinned ? 0 : user.uid],
+                });
+                setLayout(getPinnedLayoutName());
+              }
+            },
+          });
+        }
+      }
+
+      if (currentLayout === DefaultLayouts[1].name) {
+        const pinToTopKey = ActionMenuKeys.PIN_TO_TOP;
+        const pinToTopConfig = userActionMenuItems?.[pinToTopKey] ?? {};
+        const isPinnedToTop = user.uid === secondaryPinnedUid;
+        const isOnlyOneActive = activeUids?.length === 1;
+
+        if (!pinToTopConfig.hide) {
+          items.push({
+            key: pinToTopKey,
+            disabled: pinToTopConfig.disabled ?? isOnlyOneActive,
+            order: pinToTopConfig.order ?? 1,
+            icon: isPinnedToTop ? 'unpin-outlined' : 'pin-outlined',
+            onHoverIcon: isPinnedToTop ? 'unpin-filled' : 'pin-filled',
+            iconColor: $config.SECONDARY_ACTION_COLOR,
+            textColor: $config.SECONDARY_ACTION_COLOR,
+            title: isPinnedToTop ? removeFromTopLabel : pinToTopLabel,
+            onPress: () => {
+              setActionMenuVisible(false);
+              if (pinToTopConfig.onPress) {
+                pinToTopConfig.onPress();
+              } else {
+                pinToTopConfig.onAction?.();
+                dispatch({
+                  type: 'UserSecondaryPin',
+                  value: [isPinnedToTop ? 0 : user.uid],
+                });
+              }
+            },
+          });
         }
       }
     }
@@ -395,20 +416,6 @@ export default function UserActionMenuOptionsOptions(
         });
       }
 
-      // if ($config.CHAT) {
-      //   items.push({
-      //     icon: 'chat-outlined',
-      //     onHoverIcon: 'chat-filled',
-      //     iconColor: $config.SECONDARY_ACTION_COLOR,
-      //     textColor: $config.SECONDARY_ACTION_COLOR,
-      //     title: messagePrivatelyLabel,
-      //     onPress: () => {
-      //       setActionMenuVisible(false);
-      //       openPrivateChat(user.uid);
-      //     },
-      //   });
-      // }
-
       /**
        * Only host can see this menu item - request/mute - video/audio, promote to co host,demote to audience,remove form meeting
        */
@@ -428,20 +435,6 @@ export default function UserActionMenuOptionsOptions(
             $config.RAISE_HAND &&
             hostUids.indexOf(user.uid) !== -1)
         ) {
-          // items.push({
-          //   icon: user.audio ? 'mic-off-outlined' : 'mic-on-outlined',
-          //   onHoverIcon: user.audio ? 'mic-off-filled' : 'mic-on-filled',
-          //   iconColor: $config.SECONDARY_ACTION_COLOR,
-          //   textColor: $config.SECONDARY_ACTION_COLOR,
-          //   title: audioLabel(user.audio),
-          //   onPress: () => {
-          //     setActionMenuVisible(false);
-          //     user.audio
-          //       ? setShowAudioMuteModal(true)
-          //       : remoteRequest(REQUEST_REMOTE_TYPE.audio, user.uid);
-          //   },
-          // });
-
           const muteAudioKey = ActionMenuKeys.MUTE_AUDIO;
           const isMuted = user.audio;
           const muteAudioConfig = userActionMenuItems?.[muteAudioKey] ?? {};
@@ -495,20 +488,6 @@ export default function UserActionMenuOptionsOptions(
                 }
               },
             });
-
-            // items.push({
-            //   icon: user.video ? 'video-off-outlined' : 'video-on-outlined',
-            //   onHoverIcon: user.video ? 'video-off-filled' : 'video-on-filled',
-            //   iconColor: $config.SECONDARY_ACTION_COLOR,
-            //   textColor: $config.SECONDARY_ACTION_COLOR,
-            //   title: videoLabel(user.video),
-            //   onPress: () => {
-            //     setActionMenuVisible(false);
-            //     user.video
-            //       ? setShowVideoMuteModal(true)
-            //       : remoteRequest(REQUEST_REMOTE_TYPE.video, user.uid);
-            //   },
-            // });
           }
         }
 
@@ -580,17 +559,6 @@ export default function UserActionMenuOptionsOptions(
             },
           });
         }
-
-        // items.push({
-        //   icon: 'remove-meeting',
-        //   iconColor: $config.SEMANTIC_ERROR,
-        //   textColor: $config.SEMANTIC_ERROR,
-        //   title: removeFromRoomLabel,
-        //   onPress: () => {
-        //     setActionMenuVisible(false);
-        //     setRemoveMeetingPopupVisible(true);
-        //   },
-        // });
       }
     }
 

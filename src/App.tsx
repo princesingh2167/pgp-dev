@@ -13,6 +13,7 @@ import {SetRoomInfoProvider} from './components/room-info/useSetRoomInfo';
 import {ShareLinkProvider} from './components/useShareLink';
 import AppRoutes from './AppRoutes';
 import {isWebInternal} from './utils/common';
+import {CustomWrapperProvider} from './components/contexts/CustomWrapper';
 
 declare global {
   interface Navigator {
@@ -51,9 +52,11 @@ const App: React.FC = () => {
     <AppWrapper>
       <SetRoomInfoProvider value={{setRoomInfo}}>
         <RoomInfoProvider value={{...roomInfo}}>
-          <ShareLinkProvider>
-            <AppRoutes />
-          </ShareLinkProvider>
+          <CustomWrapperProvider>
+            <ShareLinkProvider>
+              <AppRoutes />
+            </ShareLinkProvider>
+          </CustomWrapperProvider>
         </RoomInfoProvider>
       </SetRoomInfoProvider>
     </AppWrapper>

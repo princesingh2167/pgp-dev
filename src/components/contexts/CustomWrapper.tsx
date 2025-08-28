@@ -28,7 +28,7 @@ import {
 import {PinProvider} from './PinContext';
 import {UidType} from '../../../index.rsdk';
 import {DispatchContext} from '../../../agora-rn-uikit';
-import {getPinnedLayoutName} from '../../pages/video-call/DefaultLayouts';
+import {getPinnedLayoutName, DefaultLayouts} from '../../pages/video-call/DefaultLayouts';
 import {useLiveStreamDataContext} from './LiveStreamDataContext';
 
 export interface CustomWrapperContextInterface {
@@ -180,13 +180,13 @@ const CustomWrapperProvider = (props: CustomWrapperProviderProps) => {
 
   // Register event listeners
   useEffect(() => {
-    console.log('Registering PIN_FOR_EVERYONE event listener');
+    // console.log('Registering PIN_FOR_EVERYONE event listener');
     customEvents.on('DISABLE_ATTENDEE_MIC', disableMicHandler);
     customEvents.on('DISABLE_ATTENDEE_VIDEO', disableVideoHandler);
     customEvents.on('PIN_FOR_EVERYONE', pinForEveryoneHandler);
 
     return () => {
-      console.log('Unregistering PIN_FOR_EVERYONE event listener');
+      // console.log('Unregistering PIN_FOR_EVERYONE event listener');
       customEvents.off('DISABLE_ATTENDEE_MIC', disableMicHandler);
       customEvents.off('DISABLE_ATTENDEE_VIDEO', disableVideoHandler);
       customEvents.off('PIN_FOR_EVERYONE', pinForEveryoneHandler);
@@ -222,13 +222,14 @@ const CustomWrapperProvider = (props: CustomWrapperProviderProps) => {
           } else if (action === 'unpin') {
             // Unpin for everyone
             unPinForEveryone();
-            // Update layout for all users
+            // Update layout for all users - switch back to default layout
             if (dispatchContext?.dispatch) {
               dispatchContext.dispatch({
                 type: 'UserPin',
                 value: [0],
               });
-              setLayout(getPinnedLayoutName());
+              // When unpinning, switch back to default layout instead of pinned layout
+              setLayout('grid'); // Use default grid layout
             }
           }
           pendingPinRef.current = null;

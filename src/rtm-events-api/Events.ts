@@ -226,7 +226,7 @@ class Events {
         return;
       }
       EventUtils.addListener(eventName, listener, this.source);
-      console.log('CUSTOM_EVENT_API event listener registered', eventName);
+      // console.log('CUSTOM_EVENT_API event listener registered', eventName);
       return () => {
         //@ts-ignore
         EventUtils.removeListener(eventName, listener, this.source);

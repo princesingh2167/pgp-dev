@@ -103,7 +103,7 @@ export const UserActionMenuItem = ({
   externalIconString = '',
 }: UserActionMenuItemProps) => {
   const iconToShow = isHovered && onHoverIcon && !disabled ? onHoverIcon : icon;
-  console.log(label, 'label:');
+
   const content = (
     <>
       <View style={styles.iconContainer}>

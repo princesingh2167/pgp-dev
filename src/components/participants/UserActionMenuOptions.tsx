@@ -203,8 +203,8 @@ export default function UserActionMenuOptionsOptions(
         audienceUids.indexOf(user.uid) !== -1
       )
     ) {
-      if (enablePinForMe) {
-        // Add Pin for everyone option for all users
+      if (enablePinForMe && isHost) {
+        // Add Pin for everyone option for hosts only
         const pinForEveryoneKey = 'pin-for-everyone';
         const pinForEveryoneConfig =
           userActionMenuItems?.[pinForEveryoneKey] ?? {};
@@ -230,7 +230,7 @@ export default function UserActionMenuOptionsOptions(
               } else {
                 const newPinnedUid = isPinnedForEveryone ? null : user.uid;
                 // When sending
-                console.log('Sending PIN_FOR_EVERYONE event', newPinnedUid);
+                // console.log('Sending PIN_FOR_EVERYONE event', newPinnedUid);
 
                 // Send event to all participants
                 customEvents.send(
@@ -259,12 +259,13 @@ export default function UserActionMenuOptionsOptions(
                 } else {
                   // Unpin for everyone
                   unPinForEveryone();
-                  // Update local layout for all users
+                  // Update layout for all users - switch back to default layout
                   dispatch({
                     type: 'UserPin',
                     value: [0],
                   });
-                  setLayout(getPinnedLayoutName());
+                  // When unpinning, switch back to default layout instead of pinned layout
+                  setLayout(DefaultLayouts[0].name); // Use default layout
                 }
               }
             },
@@ -693,7 +694,6 @@ export default function UserActionMenuOptionsOptions(
     raiseHandList,
     hostUids,
     user,
-    disableChatUids,
     secondaryPinnedUid,
     currentLayout,
     spotlightUid,

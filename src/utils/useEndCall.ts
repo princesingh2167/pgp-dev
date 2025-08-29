@@ -68,6 +68,11 @@ const useEndCall = () => {
     } catch (error) {
       console.log('debugging error on afterEndCall', error);
     }
+
+    // Navigate to feedback page after ending the call
+    try {
+      history.push('/feedback');
+    } catch (e) {}
   };
 };
 

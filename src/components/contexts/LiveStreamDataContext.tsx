@@ -27,6 +27,7 @@ export interface LiveStreamDataContextInterface {
   arUids: UidType[];
   liveStreamData: raiseHandListInterface;
   pinnedUids: UidType[];
+  removeUid: (uid: UidType) => void;
 }
 const LiveStreamDataContext = createContext<LiveStreamDataContextInterface>({
   hostUids: [],
@@ -34,6 +35,7 @@ const LiveStreamDataContext = createContext<LiveStreamDataContextInterface>({
   arUids: [],
   liveStreamData: {},
   pinnedUids: [],
+  removeUid: () => {},
 });
 
 interface ScreenShareProviderProps {
@@ -46,15 +48,15 @@ const LiveStreamDataProvider = (props: ScreenShareProviderProps) => {
   const [audienceUids, setAudienceUids] = useState<UidType[]>([]);
   const [arUids, setARUids] = useState<UidType[]>([]);
   const [pinnedUids, setPinnedUids] = useState<UidType[]>([]);
-  console.log(activeUids, 'defaultContent');
+  // console.log(activeUids, 'defaultContent');
   useEffect(() => {
     if (activeUids) {
       setPinnedUids(activeUids);
-      console.log('Updated pinnedUids:', {
-        activeUids,
-        pinnedUids: activeUids,
-        timestamp: new Date().toISOString(),
-      });
+      // console.log('Updated pinnedUids:', {
+      //   activeUids,
+      //   pinnedUids: activeUids,
+      //   timestamp: new Date().toISOString(),
+      // });
     }
   }, [activeUids]);
   React.useEffect(() => {
@@ -83,18 +85,26 @@ const LiveStreamDataProvider = (props: ScreenShareProviderProps) => {
         ([k, v]) =>
           (v?.type === '' || v?.type === '') &&
           raiseHandList[k]?.role !== ClientRoleType.ClientRoleARAdmin &&
-          !v.offline,
+          !v.offline &&
+          activeUids.indexOf(v?.uid) !== -1,
       );
 
-      const hUids = Object.keys(hostList).map(uid => parseInt(uid));
-      const aUids = Object.keys(audienceList).map(uid => parseInt(uid));
-      const aRUids = Object.keys(arAdminList).map(uid => parseInt(uid));
-      console.log('arUids', aRUids);
+      const hUids = Object.keys(hostList).map(uid => parseInt(uid, 10));
+      const aUids = Object.keys(audienceList).map(uid => parseInt(uid, 10));
+      const aRUids = Object.keys(arAdminList).map(uid => parseInt(uid, 10));
+
       setHostUids(hUids);
       setAudienceUids(aUids);
       setARUids(aRUids);
     }
-  }, [defaultContent, raiseHandList]);
+  }, [defaultContent, raiseHandList, activeUids]);
+
+  const removeUid = (uid: UidType) => {
+    setARUids(prev => prev.filter(i => i !== uid));
+    setHostUids(prev => prev.filter(i => i !== uid));
+    setAudienceUids(prev => prev.filter(i => i !== uid));
+    setPinnedUids(prev => prev.filter(i => i !== uid));
+  };
 
   return (
     <LiveStreamDataContext.Provider
@@ -104,6 +114,7 @@ const LiveStreamDataProvider = (props: ScreenShareProviderProps) => {
         audienceUids,
         arUids,
         pinnedUids,
+        removeUid,
       }}>
       {props.children}
     </LiveStreamDataContext.Provider>

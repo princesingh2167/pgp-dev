@@ -25,6 +25,7 @@ import {useIsRecordingBot} from './subComponents/recording/useIsRecordingBot';
 import {isValidReactComponent} from './utils/common';
 import ErrorBoundary from './components/ErrorBoundary';
 import {ErrorBoundaryFallback} from './components/ErrorBoundaryFallback';
+import FeedbackPage from './components/FeedbackPage';
 
 function VideoCallWrapper(props) {
   const {isRecordingBot} = useIsRecordingBot();
@@ -89,6 +90,9 @@ function AppRoutes() {
           <DefaultRootFallback />
         ) : (
           <Redirect to={'/create'} />
+          // <Route path="*">
+          //   <Text>Page not found</Text>
+          // </Route>
         )}
       </Route>
       <Route exact path={'/authorize/:token?'}>
@@ -100,6 +104,12 @@ function AppRoutes() {
       <AuthRoute exact path={'/create'}>
         <Create />
       </AuthRoute>
+      <AuthRoute exact path={'/feedback'}>
+        <FeedbackPage />
+      </AuthRoute>
+      <Route exact path={'/feedback'}>
+        <FeedbackPage />
+      </Route>
       {RenderCustomRoutes()}
       <Route exact path={'/:phrase'} component={VideoCallWrapper} />
       <Route path="*">

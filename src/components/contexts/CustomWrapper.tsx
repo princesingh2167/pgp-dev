@@ -115,24 +115,24 @@ const CustomWrapperProvider = (props: CustomWrapperProviderProps) => {
 
   const pinForEveryoneHandler = useCallback(
     ({payload}: {payload: string}) => {
-      console.log('PIN_FOR_EVERYONE event received with payload:', payload);
+      // console.log('PIN_FOR_EVERYONE event received with payload:', payload);
       try {
         const data = JSON.parse(payload);
-        console.log('Parsed PIN_FOR_EVERYONE data:', data);
+        // console.log('Parsed PIN_FOR_EVERYONE data:', data);
 
         if (!data || typeof data !== 'object') {
           throw new Error('Invalid payload format');
         }
 
         if (data.uidType !== 'rtc') {
-          console.log('Skipping non-rtc uidType:', data.uidType);
+          // console.log('Skipping non-rtc uidType:', data.uidType);
           return;
         }
 
         const pinUID = data.pinForAllUid;
         const action = data.action;
 
-        console.log('Processing pin action:', {pinUID, action});
+        // console.log('Processing pin action:', {pinUID, action});
 
         if (!pinUID && action !== 'unpin') {
           throw new Error('Missing required fields: pinUID or action');
@@ -143,7 +143,7 @@ const CustomWrapperProvider = (props: CustomWrapperProviderProps) => {
 
         // Then update the global pin state and layout
         if (action === 'pin' && pinUID) {
-          console.log('Pinning user for everyone:', pinUID);
+          // console.log('Pinning user for everyone:', pinUID);
           // Pin for everyone
           pinForEveryone(pinUID);
           // Update layout for all users

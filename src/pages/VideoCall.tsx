@@ -9,6 +9,7 @@
  information visit https://appbuilder.agora.io.
 *********************************************
 */
+/* eslint-disable linebreak-style */
 // @ts-nocheck
 import React, {useState, useContext, useEffect, useRef} from 'react';
 import {useApolloClient} from '@apollo/client';
@@ -27,7 +28,7 @@ import {useParams, useHistory} from '../components/Router';
 import RtmConfigure from '../components/RTMConfigure';
 import DeviceConfigure from '../components/DeviceConfigure';
 import Logo from '../subComponents/Logo';
-import {useHasBrandLogo, isMobileUA, isWebInternal} from '../utils/common';
+import {useHasBrandLogo, isMobileUA} from '../utils/common';
 import {videoView} from '../../theme.json';
 import {LiveStreamContextProvider} from '../components/livestream';
 import ScreenshareConfigure from '../subComponents/screenshare/ScreenshareConfigure';
@@ -83,6 +84,10 @@ import {UserActionMenuProvider} from '../components/useUserActionMenu';
 import Toast from '../../react-native-toast-message';
 import {AuthErrorCodes} from '../utils/common';
 import {CustomWrapperProvider} from '../components/contexts/CustomWrapper';
+import {useLiveStreamDataContext} from '../components/contexts/LiveStreamDataContext';
+import MeetingTimer from '../components/MeetingTimer';
+import events from '../rtm-events-api';
+import {EventNames, PersistanceLevel} from '../rtm-events';
 
 enum RnEncryptionEnum {
   /**
@@ -135,6 +140,7 @@ const VideoCall: React.FC = () => {
   const bannedUserText = useString(userBannedText)();
 
   const client = useApolloClient();
+  const {removeUid} = useLiveStreamDataContext();
 
   const {setGlobalErrorMessage} = useContext(ErrorContext);
   const {awake, release} = useWakeLock();
@@ -170,6 +176,10 @@ const VideoCall: React.FC = () => {
     cameraDevice: sdkCameraDevice,
     clearState,
   } = useContext(SdkApiContext);
+  // Meeting timing state
+  const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null);
+  const meetingEndTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isHostRef = useRef<boolean>(false);
 
   // commented for v1 release
   const afterEndCall = useCustomization(
@@ -258,6 +268,87 @@ const VideoCall: React.FC = () => {
       }
     };
   }, []);
+
+  // Determine host role once room info is fetched
+  useEffect(() => {
+    if (isJoinDataFetched) {
+      isHostRef.current = !!data?.isHost;
+    }
+  }, [isJoinDataFetched, data]);
+
+  // Setup meeting timer via RTM channel attributes
+  useEffect(() => {
+    if (!isJoinDataFetched || !rtcProps?.channel) {
+      return;
+    }
+
+    const setupHostTimer = async () => {
+      try {
+        const startTime = Date.now();
+        const duration = (data?.meetingDurationInMinutes as number) || 30;
+        const payload = JSON.stringify({
+          payload: JSON.stringify({
+            start_time: startTime,
+            duration,
+          }),
+          persistLevel: PersistanceLevel.Channel,
+          source: 'core',
+        });
+        await events.send(
+          EventNames.MEETING_TIMER_ATTRIBUTE,
+          JSON.stringify({start_time: startTime, duration}),
+          PersistanceLevel.Channel,
+        );
+
+        const endAt = startTime + duration * 60 * 1000;
+        const remain = Math.max(0, Math.floor((endAt - Date.now()) / 1000));
+        setRemainingSeconds(remain);
+        if (meetingEndTimeoutRef.current) {
+          clearTimeout(meetingEndTimeoutRef.current);
+        }
+        meetingEndTimeoutRef.current = setTimeout(() => {
+          // On expiry, host announces end and ends call
+          events.send(
+            EventNames.MEETING_ENDED,
+            JSON.stringify({reason: 'timeout'}),
+            PersistanceLevel.Session,
+          );
+          callbacks.EndCall && callbacks.EndCall();
+        }, duration * 60 * 1000);
+      } catch (e) {}
+    };
+
+    const unsubTimerAttr = events.on(
+      EventNames.MEETING_TIMER_ATTRIBUTE,
+      ({payload}) => {
+        try {
+          const {start_time, duration} = JSON.parse(payload || '{}');
+          if (!start_time || !duration) return;
+          const endAt = start_time + duration * 60 * 1000;
+          const remain = Math.max(0, Math.floor((endAt - Date.now()) / 1000));
+          setRemainingSeconds(remain);
+        } catch (e) {}
+      },
+    );
+
+    const unsubEnded = events.on(EventNames.MEETING_ENDED, () => {
+      // Anyone receiving end signal should end immediately
+      callbacks.EndCall && callbacks.EndCall();
+    });
+
+    if (data?.isHost) {
+      setupHostTimer();
+    }
+
+    return () => {
+      unsubTimerAttr && unsubTimerAttr();
+      unsubEnded && unsubEnded();
+      if (meetingEndTimeoutRef.current) {
+        clearTimeout(meetingEndTimeoutRef.current);
+        meetingEndTimeoutRef.current = null;
+      }
+    };
+  }, [isJoinDataFetched, data?.isHost, rtcProps?.channel]);
 
   useEffect(() => {
     if (!SdkJoinState.phrase) {
@@ -436,6 +527,11 @@ const VideoCall: React.FC = () => {
     UserOffline: (uid: UidType) => {
       console.log('UIKIT Callback: UserOffline', uid);
       SDKEvents.emit('rtc-user-left', uid);
+      try {
+        removeUid(uid);
+      } catch (e) {
+        // no-op
+      }
     },
     RemoteAudioStateChanged: (uid: UidType, status: 0 | 2) => {
       console.log('UIKIT Callback: RemoteAudioStateChanged', uid, status);
@@ -516,62 +612,109 @@ const VideoCall: React.FC = () => {
                                                     callActive,
                                                   }}>
                                                   <LiveStreamDataProvider>
-                                                      <LocalUserContext
-                                                        localUid={
-                                                          rtcProps?.uid
-                                                        }>
-                                                        <RecordingProvider
-                                                          value={{
-                                                            setRecordingActive,
-                                                            isRecordingActive,
-                                                            callActive,
-                                                            recordingAutoStarted,
-                                                            setRecordingAutoStarted,
-                                                          }}>
-                                                          <NetworkQualityProvider>
-                                                            {!isMobileUA() && (
-                                                              <PermissionHelper />
-                                                            )}
-                                                            <UserActionMenuProvider>
-                                                              <VBProvider>
-                                                                <BeautyEffectProvider>
-                                                                  <PrefereceWrapper
-                                                                    callActive={
-                                                                      callActive
-                                                                    }
-                                                                    setCallActive={
-                                                                      setCallActive
-                                                                    }>
-                                                                    <SdkMuteToggleListener>
-                                                                      {callActive ? (
-                                                                        <VideoMeetingDataProvider>
-                                                                          <VideoCallProvider>
-                                                                            <DisableChatProvider>
+                                                    <LocalUserContext
+                                                      localUid={rtcProps?.uid}>
+                                                      <RecordingProvider
+                                                        value={{
+                                                          setRecordingActive,
+                                                          isRecordingActive,
+                                                          callActive,
+                                                          recordingAutoStarted,
+                                                          setRecordingAutoStarted,
+                                                        }}>
+                                                        <NetworkQualityProvider>
+                                                          {!isMobileUA() && (
+                                                            <PermissionHelper />
+                                                          )}
+                                                          <UserActionMenuProvider>
+                                                            <VBProvider>
+                                                              <BeautyEffectProvider>
+                                                                <PrefereceWrapper
+                                                                  callActive={
+                                                                    callActive
+                                                                  }
+                                                                  setCallActive={
+                                                                    setCallActive
+                                                                  }>
+                                                                  <SdkMuteToggleListener>
+                                                                    {callActive ? (
+                                                                      <VideoMeetingDataProvider>
+                                                                        <VideoCallProvider>
+                                                                          <DisableChatProvider>
                                                                             <CustomWrapperProvider>
+                                                                              <View
+                                                                                style={
+                                                                                  style.timerOverlay
+                                                                                }>
+                                                                                <MeetingTimer
+                                                                                  remainingSeconds={
+                                                                                    remainingSeconds ?? undefined
+                                                                                  }
+                                                                                  durationInMinutes={30}
+                                                                                  warningBeforeSeconds={60}
+                                                                                  onWarning={secondsRemaining => {
+                                                                                    try {
+                                                                                      Toast.show(
+                                                                                        {
+                                                                                          leadingIconName:
+                                                                                            'alert',
+                                                                                          type: 'info',
+                                                                                          text1: `Meeting ends in ${Math.floor(
+                                                                                            secondsRemaining /
+                                                                                              60,
+                                                                                          )}:${(
+                                                                                            secondsRemaining %
+                                                                                            60
+                                                                                          )
+                                                                                            .toString()
+                                                                                            .padStart(
+                                                                                              2,
+                                                                                              '0',
+                                                                                            )}`,
+                                                                                          visibilityTime: 3000,
+                                                                                        },
+                                                                                      );
+                                                                                    } catch (e) {}
+                                                                                  }}
+                                                                                  onExpire={() => {
+                                                                                    try {
+                                                                                      callbacks.EndCall &&
+                                                                                        callbacks.EndCall();
+                                                                                    } catch (e) {
+                                                                                      history.push(
+                                                                                        '/feedback',
+                                                                                      );
+                                                                                    }
+                                                                                  }}
+                                                                                  textStyle={
+                                                                                    style.timerText
+                                                                                  }
+                                                                                />
+                                                                              </View>
                                                                               <VideoCallScreenWrapper />
                                                                             </CustomWrapperProvider>
-                                                                            </DisableChatProvider>
-                                                                          </VideoCallProvider>
-                                                                        </VideoMeetingDataProvider>
-                                                                      ) : $config.PRECALL ? (
-                                                                        <PreCallProvider
-                                                                          value={{
-                                                                            callActive,
-                                                                            setCallActive,
-                                                                          }}>
-                                                                          <Precall />
-                                                                        </PreCallProvider>
-                                                                      ) : (
-                                                                        <></>
-                                                                      )}
-                                                                    </SdkMuteToggleListener>
-                                                                  </PrefereceWrapper>
-                                                                </BeautyEffectProvider>
-                                                              </VBProvider>
-                                                            </UserActionMenuProvider>
-                                                          </NetworkQualityProvider>
-                                                        </RecordingProvider>
-                                                      </LocalUserContext>
+                                                                          </DisableChatProvider>
+                                                                        </VideoCallProvider>
+                                                                      </VideoMeetingDataProvider>
+                                                                    ) : $config.PRECALL ? (
+                                                                      <PreCallProvider
+                                                                        value={{
+                                                                          callActive,
+                                                                          setCallActive,
+                                                                        }}>
+                                                                        <Precall />
+                                                                      </PreCallProvider>
+                                                                    ) : (
+                                                                      <></>
+                                                                    )}
+                                                                  </SdkMuteToggleListener>
+                                                                </PrefereceWrapper>
+                                                              </BeautyEffectProvider>
+                                                            </VBProvider>
+                                                          </UserActionMenuProvider>
+                                                        </NetworkQualityProvider>
+                                                      </RecordingProvider>
+                                                    </LocalUserContext>
                                                   </LiveStreamDataProvider>
                                                 </LiveStreamContextProvider>
                                               </ScreenshareConfigure>
@@ -648,6 +791,20 @@ const style = StyleSheet.create({
     marginBottom: 30,
   },
   loaderText: {fontWeight: '500', color: $config.FONT_COLOR},
+  timerOverlay: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    zIndex: 1000,
+  },
+  timerText: {
+    color: '#fff',
+    fontWeight: '600',
+  },
 });
 
 export default VideoCall;

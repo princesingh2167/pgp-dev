@@ -646,11 +646,13 @@ const VideoCall: React.FC = () => {
                                                                                 style={
                                                                                   style.timerOverlay
                                                                                 }>
+
+                                                                                  {/* Video call timer */}
                                                                                 <MeetingTimer
                                                                                   remainingSeconds={
                                                                                     remainingSeconds ?? undefined
                                                                                   }
-                                                                                  durationInMinutes={30}
+                                                                                  durationInMinutes={180}
                                                                                   warningBeforeSeconds={60}
                                                                                   onWarning={secondsRemaining => {
                                                                                     try {
@@ -682,7 +684,7 @@ const VideoCall: React.FC = () => {
                                                                                         callbacks.EndCall();
                                                                                     } catch (e) {
                                                                                       history.push(
-                                                                                        '/feedback',
+                                                                                        '/:meetingId/feedback',
                                                                                       );
                                                                                     }
                                                                                   }}

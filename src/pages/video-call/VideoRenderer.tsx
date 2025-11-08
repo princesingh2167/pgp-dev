@@ -15,7 +15,6 @@ import {
   useContent,
   useRtc,
   useSpotlight,
-  customEvents,
   CustomAgentInterfaceProps,
 } from 'customization-api';
 import {
@@ -37,7 +36,7 @@ import {useScreenContext} from '../../components/contexts/ScreenShareContext';
 import ZoomableWrapper from './ZoomableWrapper';
 import {isAndroid} from '../../utils/common';
 import {isIOS} from '../../utils/common';
-import {useScreenshare} from '../../subComponents/screenshare/useScreenshare';
+// import {useScreenshare} from '../../subComponents/screenshare/useScreenshare';
 import useActiveSpeaker from '../../utils/useActiveSpeaker';
 import {useVideoCall} from '../../components/useVideoCall';
 import VisibilitySensor from './VisibilitySensor';
@@ -128,7 +127,7 @@ const VideoRenderer: React.FC<VideoRendererProps> = ({
     setScreenShareOnFullView,
   } = useScreenContext();
 
-  const {isScreenshareActive} = useScreenshare();
+  // const {isScreenshareActive} = useScreenshare();
 
   useEffect(() => {
     landscapeModeRef.current.landscapeMode = landscapeMode;
@@ -167,7 +166,7 @@ const VideoRenderer: React.FC<VideoRendererProps> = ({
         }
       }
     }
-  }, [screenShareData, isScreenShareOnFullView]);
+  }, [screenShareData, isScreenShareOnFullView, RtcEngineUnsafe, user?.uid]);
 
   const isNativeScreenShareActive =
     (isAndroid() || isIOS() || isMobileUA()) && user?.type === 'screenshare';
@@ -196,6 +195,42 @@ const VideoRenderer: React.FC<VideoRendererProps> = ({
     });
   };
   const {setSpotlightUid, spotlightUid} = useSpotlight();
+  // Fetch AR Manager names to override display on video tiles when available
+  type ArNameEntry = {uid: number | string; name: string};
+  const [arManagerNameEntries, setArManagerNameEntries] = useState<
+    ArNameEntry[]
+  >([]);
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await fetch(
+          'https://ugkznimh5b.ap-south-1.awsapprunner.com/users/by-role?roleName=AR%20Manager',
+        );
+        const data = await res.json();
+        const mapped = (data || []).map((item: any) => ({
+          uid: item.id, // replace with Agora UID field if available
+          name: item.name,
+        }));
+        if (mounted) {
+          setArManagerNameEntries(mapped);
+        }
+      } catch (e) {
+        // ignore errors; fallback to default names
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+  const getArDisplayName = (uid?: number | string, fallback?: string) => {
+    if (uid === undefined || uid === null) {
+      return fallback;
+    }
+    const entry = arManagerNameEntries.find(e => String(e.uid) === String(uid));
+    return entry?.name || fallback;
+  };
+  const displayName = getArDisplayName(user?.uid, user?.name);
 
   return (
     <>
@@ -218,7 +253,7 @@ const VideoRenderer: React.FC<VideoRendererProps> = ({
         <View
           onLayout={({
             nativeEvent: {
-              layout: {x, y, width, height},
+              layout: {width},
             },
           }) => {
             setVideoTileWidth(width);
@@ -358,7 +393,7 @@ const VideoRenderer: React.FC<VideoRendererProps> = ({
                 <MaxVideoView
                   fallback={() => {
                     return FallbackLogo(
-                      user?.name,
+                      displayName,
                       isActiveSpeaker,
                       enablePinForMe &&
                         (showReplacePin || showPinForMe) &&
@@ -395,7 +430,7 @@ const VideoRenderer: React.FC<VideoRendererProps> = ({
             (pinnedUid !== getWhiteboardUid() || currentLayout === 'grid')) ? (
             <VideoContainerProvider value={{videoTileWidth}}>
               <NameWithMicIcon
-                name={user.name}
+                name={displayName}
                 muted={CustomChild ? undefined : !user.audio}
                 customBgColor={
                   CustomChild ? $config.VIDEO_AUDIO_TILE_OVERLAY_COLOR : null

@@ -10,36 +10,31 @@
 *********************************************
 */
 import React from 'react';
-import {Image, TouchableOpacity, StyleSheet} from 'react-native';
-import {useHistory} from '../components/Router';
+import {Image, StyleSheet} from 'react-native';
 
 /**
  * Displays the logo.
  */
 export default function Logo() {
-  const history = useHistory();
-
   return (
-    <TouchableOpacity onPress={() => history.replace('/')}>
-      <Image
-        source={{uri: $config.LOGO}}
-        style={styles.logo}
-        resizeMode="contain"
-      />
-    </TouchableOpacity>
+    <Image
+      source={{uri: $config.LOGO}}
+      style={styles.logo}
+      resizeMode="contain"
+    />
   );
 }
 
 const styles = StyleSheet.create({
   logo: {
-    minWidth: 60,
-    minHeight: 30,
+    minWidth: 150,
+    minHeight: 150,
   },
   marginAuto: {
-    width: '30%',
-    height: '30%',
-    minWidth: 60,
-    minHeight: 30,
+    width: '100%',
+    height: '100%',
+    minWidth: 150,
+    minHeight: 150,
     // height: 'auto',
   },
 });

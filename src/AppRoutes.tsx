@@ -25,7 +25,9 @@ import {useIsRecordingBot} from './subComponents/recording/useIsRecordingBot';
 import {isValidReactComponent} from './utils/common';
 import ErrorBoundary from './components/ErrorBoundary';
 import {ErrorBoundaryFallback} from './components/ErrorBoundaryFallback';
-import FeedbackPage from './components/FeedbackPage';
+// import FeedbackPage from './components/FeedbackPage';
+import Thankyou from './components/Thankyou';
+import PreJoinPage from './components/PreJoinPage';
 
 function VideoCallWrapper(props) {
   const {isRecordingBot} = useIsRecordingBot();
@@ -104,12 +106,15 @@ function AppRoutes() {
       <AuthRoute exact path={'/create'}>
         <Create />
       </AuthRoute>
-      <AuthRoute exact path={'/feedback'}>
+      {/* <AuthRoute exact path={'/feedback'}>
         <FeedbackPage />
-      </AuthRoute>
+      </AuthRoute> */}
       <Route exact path={'/feedback'}>
-        <FeedbackPage />
+        <Thankyou />
       </Route>
+      <AuthRoute exact path={'/:meetingId/:chanelId'}>
+        <PreJoinPage />
+      </AuthRoute>
       {RenderCustomRoutes()}
       <Route exact path={'/:phrase'} component={VideoCallWrapper} />
       <Route path="*">

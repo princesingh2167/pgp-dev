@@ -49,6 +49,7 @@ import {
   peoplePanelNoHostJoinedContent,
   peoplePanelNoUsersJoinedContent,
 } from '../../src/language/default-labels/videoCallScreenLabels';
+import AllPresenterParticipants from './participants/AllPresenterParticipants';
 
 const ParticipantView = props => {
   const {activeUids, customContent, defaultContent} = useContent();
@@ -158,7 +159,7 @@ const ParticipantView = props => {
                       }
                     />
                     {showARManagersSection ? (
-                      <AllAudienceParticipants
+                      <AllPresenterParticipants
                         emptyMessage="No AR Managers joined yet"
                         uids={arUids}
                         isMobile={isSmall()}
@@ -230,7 +231,7 @@ const ParticipantView = props => {
                     }
                   />
                   {showARManagersSection ? (
-                    <AllAudienceParticipants
+                    <AllPresenterParticipants
                       emptyMessage="No AR Managers joined yet"
                       uids={arUids}
                       isMobile={isSmall()}

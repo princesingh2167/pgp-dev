@@ -1,7 +1,7 @@
 {
   "PRODUCT_ID": "factoryviewarpgp",
   "APP_NAME": "factoryViewARPGP",
-  "LOGO": "",
+  "LOGO": "https://www.pgpfirst.com/wp-content/uploads/logo-white.svg",
   "ICON": "",
   "APP_ID": "7f7652ae8c3b4ca8b97a7b20a11bacfd",
   "PRIMARY_COLOR": "#00AEFC",
@@ -41,7 +41,7 @@
   "GEO_FENCING": true,
   "LOG_ENABLED": true,
   "AUDIO_ROOM": false,
-  "PRIMARY_ACTION_BRAND_COLOR": "#099DFD",
+  "PRIMARY_ACTION_BRAND_COLOR": "#fc4c02",
   "PRIMARY_ACTION_TEXT_COLOR": "#FFFFFF",
   "SECONDARY_ACTION_COLOR": "#FFFFFF",
   "FONT_COLOR": "#FFFFFF",

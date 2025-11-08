@@ -61,10 +61,10 @@ const FeedbackPage: React.FC = () => {
             );
           })}
         </View>
-        <Text style={styles.label}>Optional feedback</Text>
+        <Text style={styles.label}>Feedback</Text>
         <TextInput
           style={styles.input}
-          placeholder="Tell us more (optional)"
+          placeholder="Feebacks about the meeting"
           placeholderTextColor="#999"
           multiline
           value={comment}
@@ -145,7 +145,7 @@ const styles = StyleSheet.create({
   },
   submitBtn: {
     marginTop: 16,
-    backgroundColor: '#099dfd',
+    backgroundColor: '#fc4c02',
     paddingVertical: 12,
     borderRadius: 8,
     alignItems: 'center',

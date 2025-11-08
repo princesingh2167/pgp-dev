@@ -1,4 +1,4 @@
-import React, {SetStateAction, useContext, useState} from 'react';
+import React, {SetStateAction} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import Spacer from '../atoms/Spacer';
 import Popup from '../atoms/Popup';
@@ -18,6 +18,7 @@ import {
   sttTranscriptPanelHeaderText,
 } from '../language/default-labels/videoCallScreenLabels';
 import {cancelText} from '../language/default-labels/commonLabels';
+// removed history navigation for cancel action
 
 interface EndcallPopupProps {
   modalVisible: boolean;
@@ -65,6 +66,9 @@ const EndcallPopup = (props: EndcallPopupProps) => {
 
   const stayBtnLabel = cancelLabel;
   const leaveBtnLabel = leaveMeetingPopupActionButton;
+  const onCancel = () => {
+    props.setModalVisible(false);
+  };
   return (
     <Popup
       modalVisible={props.modalVisible}
@@ -90,7 +94,7 @@ const EndcallPopup = (props: EndcallPopupProps) => {
             }}
             text={stayBtnLabel}
             textStyle={styles.btnText}
-            onPress={() => props.setModalVisible(false)}
+            onPress={onCancel}
           />
         </View>
         <Spacer

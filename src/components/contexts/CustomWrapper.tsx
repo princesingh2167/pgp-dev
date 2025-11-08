@@ -124,10 +124,8 @@ const CustomWrapperProvider = (props: CustomWrapperProviderProps) => {
           throw new Error('Invalid payload format');
         }
 
-        if (data.uidType !== 'rtc') {
-          // console.log('Skipping non-rtc uidType:', data.uidType);
-          return;
-        }
+        // Accept pins regardless of uidType ('rtc', 'user', 'screenshare', etc.)
+        // Some roles (e.g., AR Managers) may not come through with uidType 'rtc'.
 
         const pinUID = data.pinForAllUid;
         const action = data.action;
